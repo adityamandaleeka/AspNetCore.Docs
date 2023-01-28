@@ -1,14 +1,22 @@
----
-no-loc: [Home, Privacy, Kestrel, appsettings.json, "ASP.NET Core Identity", cookie, Cookie, Blazor, "Blazor Server", "Blazor WebAssembly", "Identity", "Let's Encrypt", Razor, SignalR]
----
-## UserManager and SignInManager
+## `UserManager` and `SignInManager`
 
 Set the user identifier claim type when a Server app requires:
 
 * <xref:Microsoft.AspNetCore.Identity.UserManager%601> or <xref:Microsoft.AspNetCore.Identity.SignInManager%601> in an API endpoint.
 * <xref:Microsoft.AspNetCore.Identity.IdentityUser> details, such as the user's name, email address, or lockout end time.
 
-In `Startup.ConfigureServices`:
+In `Program.cs` for ASP.NET Core 6.0 or later:
+
+```csharp
+using System.Security.Claims;
+
+...
+
+builder.Services.Configure<IdentityOptions>(options => 
+    options.ClaimsIdentity.UserIdClaimType = ClaimTypes.NameIdentifier);
+```
+
+In `Startup.ConfigureServices` for versions of ASP.NET Core earlier than 6.0:
 
 ```csharp
 using System.Security.Claims;
@@ -30,10 +38,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
-using {APP NAMESPACE}.Server.Models;
-using {APP NAMESPACE}.Shared;
+using BlazorSample.Server.Models;
+using BlazorSample.Shared;
 
-namespace {APP NAMESPACE}.Server.Controllers
+namespace BlazorSample.Server.Controllers
 {
     [Authorize]
     [ApiController]
@@ -80,3 +88,8 @@ namespace {APP NAMESPACE}.Server.Controllers
     }
 }
 ```
+
+In the preceding example:
+
+* The **`Server`** project's namespace is `BlazorSample.Server`.
+* The **`Shared`** project's namespace is `BlazorSample.Shared`.

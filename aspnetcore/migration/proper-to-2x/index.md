@@ -1,17 +1,24 @@
 ---
 title: Migrate from ASP.NET to ASP.NET Core
-author: isaac2004
+author: isaacrlevin
 description: Receive guidance for migrating existing ASP.NET MVC or Web API apps to ASP.NET Core.web
-ms.author: scaddie
+ms.author: riande
 ms.date: 10/18/2019
-no-loc: [Home, Privacy, Kestrel, appsettings.json, "ASP.NET Core Identity", cookie, Cookie, Blazor, "Blazor Server", "Blazor WebAssembly", "Identity", "Let's Encrypt", Razor, SignalR]
 uid: migration/proper-to-2x/index
 ---
 # Migrate from ASP.NET to ASP.NET Core
 
 By [Isaac Levin](https://isaaclevin.com)
 
-This article serves as a reference guide for migrating ASP.NET apps to ASP.NET Core. See the ebook [Porting existing ASP.NET apps to .NET Core](https://aka.ms/aspnet-porting-ebook) for a comprehensive porting guide.
+ :::moniker range=">= aspnetcore-7.0"
+
+This article serves as a reference guide for migrating ASP.NET Framework apps to ASP.NET Core.
+
+Visual Studio has tooling to help migrate ASP.NET apps to ASP.NET Core. For more information, see [Migrating from ASP.NET to ASP.NET Core in Visual Studio](/aspnet/core/migration/inc/overview).
+
+The [.NET Upgrade Assistant](https://dotnet.microsoft.com/platform/upgrade-assistant) is a command-line tool that can help migrate ASP.NET to ASP.NET Core. For more information, see [Overview of the .NET Upgrade Assistant](/dotnet/architecture/porting-existing-aspnet-apps/) and [Upgrade an ASP.NET MVC app to .NET 6 with the .NET Upgrade Assistant](/dotnet/core/porting/upgrade-assistant-aspnetmvc).
+
+See the ebook [Porting existing ASP.NET apps to .NET Core](https://aka.ms/aspnet-porting-ebook) for a comprehensive porting guide.
 
 ## Prerequisites
 
@@ -31,33 +38,31 @@ Targeting .NET Core allows you to eliminate numerous explicit package references
 </ItemGroup>
 ```
 
-When the metapackage is used, no packages referenced in the metapackage are deployed with the app. The .NET Core Runtime Store includes these assets, and they're precompiled to improve performance. See [Microsoft.AspNetCore.App metapackage for ASP.NET Core](xref:fundamentals/metapackage-app) for more detail.
-
 ## Project structure differences
 
-The *.csproj* file format has been simplified in ASP.NET Core. Some notable changes include:
+The `.csproj` file format has been simplified in ASP.NET Core. Some notable changes include:
 
 - Explicit inclusion of files isn't necessary for them to be considered part of the project. This reduces the risk of XML merge conflicts when working on large teams.
 - There are no GUID-based references to other projects, which improves file readability.
 - The file can be edited without unloading it in Visual Studio:
 
-    ![Edit CSPROJ context menu option in Visual Studio 2017](_static/EditProjectVs2017.png)
+    ![Edit CSPROJ context menu option in Visual Studio 2017](~/migration/proper-to-2x/_static/EditProjectVs2017.png)
 
 ## Global.asax file replacement
 
-ASP.NET Core introduced a new mechanism for bootstrapping an app. The entry point for ASP.NET applications is the *Global.asax* file. Tasks such as route configuration and filter and area registrations are handled in the *Global.asax* file.
+ASP.NET Core introduced a new mechanism for bootstrapping an app. The entry point for ASP.NET applications is the *Global.asax* file. Tasks such as route configuration, filter and area registrations are handled in the *Global.asax* file:
 
-[!code-csharp[](samples/globalasax-sample.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/globalasax-sample.cs)]
 
 This approach couples the application and the server to which it's deployed in a way that interferes with the implementation. In an effort to decouple, [OWIN](https://owin.org/) was introduced to provide a cleaner way to use multiple frameworks together. OWIN provides a pipeline to add only the modules needed. The hosting environment takes a [Startup](xref:fundamentals/startup) function to configure services and the app's request pipeline. `Startup` registers a set of middleware with the application. For each request, the application calls each of the middleware components with the head pointer of a linked list to an existing set of handlers. Each middleware component can add one or more handlers to the request handling pipeline. This is accomplished by returning a reference to the handler that's the new head of the list. Each handler is responsible for remembering and invoking the next handler in the list. With ASP.NET Core, the entry point to an application is `Startup`, and you no longer have a dependency on *Global.asax*. When using OWIN with .NET Framework, use something like the following as a pipeline:
 
-[!code-csharp[](samples/webapi-owin.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/webapi-owin.cs)]
 
 This configures your default routes, and defaults to XmlSerialization over Json. Add other Middleware to this pipeline as needed (loading services, configuration settings, static files, etc.).
 
-ASP.NET Core uses a similar approach, but doesn't rely on OWIN to handle the entry. Instead, that's done through the *Program.cs* `Main` method (similar to console applications) and `Startup` is loaded through there.
+ASP.NET Core uses a similar approach, but doesn't rely on OWIN to handle the entry. Instead, that's done through the `Program.cs` `Main` method (similar to console applications) and `Startup` is loaded through there.
 
-[!code-csharp[](samples/program.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/program.cs)]
 
 `Startup` must include a `Configure` method. In `Configure`, add the necessary middleware to the pipeline. In the following example (from the default web site template), extension methods configure the pipeline with support for:
 
@@ -66,7 +71,7 @@ ASP.NET Core uses a similar approach, but doesn't rely on OWIN to handle the ent
 - HTTP redirection to HTTPS
 - ASP.NET Core MVC
 
-[!code-csharp[](samples/startup.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/startup.cs)]
 
 The host and application have been decoupled, which provides the flexibility of moving to a different platform in the future.
 
@@ -77,23 +82,23 @@ The host and application have been decoupled, which provides the flexibility of 
 
 ASP.NET supports storing settings. These setting are used, for example, to support the environment to which the applications were deployed. A common practice was to store all custom key-value pairs in the `<appSettings>` section of the *Web.config* file:
 
-[!code-xml[](samples/webconfig-sample.xml)]
+[!code-xml[](~/migration/proper-to-2x/samples/webconfig-sample.xml)]
 
 Applications read these settings using the `ConfigurationManager.AppSettings` collection in the `System.Configuration` namespace:
 
-[!code-csharp[](samples/read-webconfig.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/read-webconfig.cs)]
 
-ASP.NET Core can store configuration data for the application in any file and load them as part of middleware bootstrapping. The default file used in the project templates is *appsettings.json*:
+ASP.NET Core can store configuration data for the application in any file and load them as part of middleware bootstrapping. The default file used in the project templates is `appsettings.json`:
 
-[!code-json[](samples/appsettings-sample.json)]
+[!code-json[](~/migration/proper-to-2x/samples/appsettings-sample.json)]
 
-Loading this file into an instance of `IConfiguration` inside your application is done in *Startup.cs*:
+Loading this file into an instance of `IConfiguration` inside your application is done in `Startup.cs`:
 
-[!code-csharp[](samples/startup-builder.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/startup-builder.cs)]
 
 The app reads from `Configuration` to get the settings:
 
-[!code-csharp[](samples/read-appsettings.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/read-appsettings.cs)]
 
 There are extensions to this approach to make the process more robust, such as using [Dependency Injection](xref:fundamentals/dependency-injection) (DI) to load a service with these values. The DI approach provides a strongly-typed set of configuration objects.
 
@@ -113,19 +118,19 @@ In ASP.NET apps, developers rely on a third-party library to implement Dependenc
 
 An example of setting up Dependency Injection with Unity is implementing `IDependencyResolver` that wraps a `UnityContainer`:
 
-[!code-csharp[](samples/sample8.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/sample8.cs)]
 
 Create an instance of your `UnityContainer`, register your service, and set the dependency resolver of `HttpConfiguration` to the new instance of `UnityResolver` for your container:
 
-[!code-csharp[](samples/sample9.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/sample9.cs)]
 
 Inject `IProductRepository` where needed:
 
-[!code-csharp[](samples/sample5.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/sample5.cs)]
 
-Because Dependency Injection is part of ASP.NET Core, you can add your service in the `ConfigureServices` method of *Startup.cs*:
+Because Dependency Injection is part of ASP.NET Core, you can add your service in the `ConfigureServices` method of `Startup.cs`:
 
-[!code-csharp[](samples/configure-services.cs)]
+[!code-csharp[](~/migration/proper-to-2x/samples/configure-services.cs)]
 
 The repository can be injected anywhere, as was true with Unity.
 
@@ -140,7 +145,7 @@ In ASP.NET, static files are stored in various directories and referenced in the
 
 In ASP.NET Core, static files are stored in the "web root" (*&lt;content root&gt;/wwwroot*), unless configured otherwise. The files are loaded into the request pipeline by invoking the `UseStaticFiles` extension method from `Startup.Configure`:
 
-[!code-csharp[](../../fundamentals/static-files/samples/1.x/StaticFilesSample/StartupStaticFiles.cs?highlight=3&name=snippet_ConfigureMethod)]
+[!code-csharp[](~/migration/proper-to-2x/samples/globalasax-sample.cs?highlight=3&name=snippet_ConfigureMethod)]
 
 > [!NOTE]
 > If targeting .NET Framework, install the NuGet package `Microsoft.AspNetCore.StaticFiles`.
@@ -201,3 +206,7 @@ For apps that post JSON information to controllers and use JSON Input Formatters
 ## Additional resources
 
 - [Porting Libraries to .NET Core](/dotnet/core/porting/libraries)
+
+:::moniker-end
+
+[!INCLUDE[](~/migration/proper-to-2x/includes/index5.md)]
